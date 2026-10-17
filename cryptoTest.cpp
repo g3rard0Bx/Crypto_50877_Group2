@@ -29,7 +29,7 @@ https://github.com/jedisct1/libhydrogen/wiki/Secret-key-encryption
 
 */
 // utilizing standard valgrind
-void valgrind_encryption_phase (uint8_t secret_key[hydro_secretbox_KEYBYTES]){
+void valgrind_phase (uint8_t secret_key[hydro_secretbox_KEYBYTES]){
 
     uint8_t msg[] = MESSAGE;
     
@@ -83,7 +83,7 @@ int main (){
     // generates suitable key
     hydro_secretbox_keygen(key);
     
-    // valgrind_encryption_phase(key);
+
 
     return 0;
 }
