@@ -16,3 +16,10 @@ If red squiggly still appears in hydrogen.h, hydrogen.c then ensure C/C++ Edit C
             ],
 ```
 
+Monocypher (git repo):
+https://github.com/snej/monocypher-cpp.git
+-monocypher.c
+-monocypher.h
+
+
+
