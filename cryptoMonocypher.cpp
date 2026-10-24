@@ -23,7 +23,6 @@ using namespace std;
 void valgrind_impl(){
     
     
-    
     uint8_t key        [32];    /* Random, secret session key  */
     uint8_t nonce      [24];    /* Use only once per key       */
     uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
@@ -53,6 +52,27 @@ void valgrind_impl(){
     VALGRIND_MAKE_MEM_DEFINED(cipher_text,sizeof(cipher_text));
     VALGRIND_MAKE_MEM_DEFINED(mac, sizeof(mac));
     
+    // decryption:
+    // uint8_t       key        [32]; /* Same as the above        */
+    // uint8_t       nonce      [24]; /* Same as the above        */
+    // const uint8_t cipher_text[12]; /* Encrypted message        */
+    // const uint8_t mac        [16]; /* Received along with text */
+    // uint8_t       plain_text [12]; /* Secret message           */
+    if (crypto_aead_unlock(plain_text, mac,
+                        key, nonce,
+                        NULL, 0,
+                        cipher_text, sizeof(plain_text))) {
+        /* The message is corrupted.
+        * Wipe key if it is no longer needed,
+        * and abort the decryption.
+        */
+        crypto_wipe(key, 32);
+    } else {
+        /* ...do something with the decrypted text here... */
+        /* Finally, wipe secrets if they are no longer needed */
+        crypto_wipe(plain_text, 12);
+        crypto_wipe(key, 32);
+    }
 
 
 

@@ -2,10 +2,22 @@
 #include <valgrind/memcheck.h>
 #include "hydrogen.h"
 
+/*
+    required functions from dudect:
+        -do_one_computation()
+        -prepare_inputs()
+        -dudect_main()
+
+*/
+#define DUDECT_IMPLEMENTATION
+#include "dudect.h"
+
+
 #define CONTEXT "Example"
 #define MESSAGE "test"
 #define MESSAGE_LEN (sizeof(MESSAGE))
 #define CIPHERTEXT_LEN (hydro_secretbox_HEADERBYTES + MESSAGE_LEN)
+
 
 using namespace std;
 
