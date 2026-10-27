@@ -59,10 +59,8 @@ int valgrind_phase(uint8_t secret_key[hydro_secretbox_KEYBYTES])
     );
 
     // Define status before handling the result
-    VALGRIND_MAKE_MEM_DEFINED(
-        secret_key, hydro_secretbox_KEYBYTES);
-    VALGRIND_MAKE_MEM_DEFINED(
-        ciphertext, sizeof(ciphertext));
+    VALGRIND_MAKE_MEM_DEFINED(secret_key, hydro_secretbox_KEYBYTES);
+    VALGRIND_MAKE_MEM_DEFINED(ciphertext, sizeof(ciphertext));
     VALGRIND_MAKE_MEM_DEFINED(decrypted, sizeof(decrypted));
 
     if (dec_result != 0) {
