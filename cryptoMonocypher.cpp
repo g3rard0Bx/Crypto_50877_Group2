@@ -20,7 +20,6 @@
 #define MESSAGE_LEN (sizeof(MESSAGE))
 #define CIPHERTEXT_LEN (hydro_secretbox_HEADERBYTES + MESSAGE_LEN)
 
-#pragma comment(lib, "bcrypt.lib")
 
 using namespace std;
 
@@ -37,8 +36,8 @@ void valgrind_impl(){
     uint8_t mac        [16];    /* Message authentication code */
     uint8_t cipher_text[12];              /* Encrypted message */
     uint8_t decrypted[sizeof(plain_text)];
-    // BCryptGenRandom(key, 32, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    // BCryptGenRandom(nonce, 24, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+
+    // using WSL so getrandom() will be used as stated in monocypher documentation 
     getrandom(key, sizeof(key), 0);
     getrandom(nonce, sizeof(nonce), 0);
     
@@ -55,7 +54,7 @@ void valgrind_impl(){
                     plain_text, sizeof(plain_text));
     
 
-    // 
+    
     VALGRIND_MAKE_MEM_DEFINED(cipher_text, sizeof(cipher_text));
     VALGRIND_MAKE_MEM_DEFINED(mac, sizeof(mac));
     
