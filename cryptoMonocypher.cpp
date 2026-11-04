@@ -53,7 +53,7 @@ void valgrind_impl(){
                     NULL, 0,
                     plain_text, sizeof(plain_text));
     
-
+    
     
     VALGRIND_MAKE_MEM_DEFINED(cipher_text, sizeof(cipher_text));
     VALGRIND_MAKE_MEM_DEFINED(mac, sizeof(mac));
@@ -68,7 +68,7 @@ void valgrind_impl(){
     int status = crypto_aead_unlock(decrypted, mac,
                     key, nonce,
                     NULL, 0,
-                    cipher_text, sizeof(cipher_text));
+                    cipher_text, sizeof(decrypted));
     
     VALGRIND_MAKE_MEM_DEFINED(&status, sizeof(status));
     assert(status==0);
@@ -78,6 +78,7 @@ void valgrind_impl(){
 
     VALGRIND_MAKE_MEM_DEFINED(key, sizeof(key));
     crypto_wipe(key, sizeof(key));
+    crypto_wipe(plain_text, sizeof(plain_text));
     crypto_wipe(decrypted, sizeof(decrypted));
     
 
@@ -89,6 +90,7 @@ void valgrind_impl(){
 int main(){
 
     
+    valgrind_impl();
     
 
     return;
