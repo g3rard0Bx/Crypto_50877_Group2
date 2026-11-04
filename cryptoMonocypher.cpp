@@ -25,7 +25,7 @@ using namespace std;
 
 
 // monocypher
-// implementations: dudect and valgrind
+// implementations: valgrind for this file
 
 void valgrind_impl(){
     
