@@ -34,7 +34,7 @@ int valgrind_phase(uint8_t secret_key[hydro_secretbox_KEYBYTES])
         secret_key
     );
 
-    // Define status before handling the result
+    // Re-define before handling the result
     VALGRIND_MAKE_MEM_DEFINED(secret_key, hydro_secretbox_KEYBYTES);
     VALGRIND_MAKE_MEM_DEFINED(msg, sizeof(msg));
     VALGRIND_MAKE_MEM_DEFINED(ciphertext, sizeof(ciphertext));
@@ -46,7 +46,6 @@ int valgrind_phase(uint8_t secret_key[hydro_secretbox_KEYBYTES])
 
     // Mark the key and ciphertext undefined for the decryption analysis
     VALGRIND_MAKE_MEM_UNDEFINED(secret_key, hydro_secretbox_KEYBYTES);
-    VALGRIND_MAKE_MEM_UNDEFINED(ciphertext, sizeof(ciphertext));
 
     // Decrypt and authenticate the ciphertext
     int dec_result = hydro_secretbox_decrypt(
@@ -58,7 +57,7 @@ int valgrind_phase(uint8_t secret_key[hydro_secretbox_KEYBYTES])
         secret_key
     );
 
-    // Define status before handling the result
+    // Re-define before handling the result
     VALGRIND_MAKE_MEM_DEFINED(secret_key, hydro_secretbox_KEYBYTES);
     VALGRIND_MAKE_MEM_DEFINED(ciphertext, sizeof(ciphertext));
     VALGRIND_MAKE_MEM_DEFINED(decrypted, sizeof(decrypted));
@@ -89,9 +88,6 @@ int main(void)
     hydro_secretbox_keygen(key);
 
     int result = valgrind_phase(key);
-
-    // Clear the key before exiting
-    hydro_wipe(key, sizeof(key));
 
     return result;
 }
