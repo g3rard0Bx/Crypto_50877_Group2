@@ -2,11 +2,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/random.h>
+
 #include "monocypher.h"
 #define DUDECT_IMPLEMENTATION
 #include "dudect.h"
 
+#define SECRET_KEY_SIZE 32
+#define NONCE_SIZE      24
+#define TEXT_SIZE       12  
+#define MAC_SIZE        16
+
+
 // dudect
+
+
+
 
 /*
 
@@ -183,6 +194,40 @@ uint8_t cipher_text[12];              // Encrypted message
  
 
 */
+
+
+/* called once per number_measurements */
+
+void prepare_inputs(dudect_config_t *c, uint8_t *input_data, uint8_t *classes) {
+
+    // randombytes(input_data, c->number_measurements * c->chunk_size);
+
+    // monocypher RNG impl:
+
+    getrandom(input_data, c->number_measurements * c->chunk_size, 0);
+
+ 
+
+    for (size_t i = 0; i < c->number_measurements; i++) {
+
+    /* it is important to randomize the class sequence */
+
+    classes[i] = randombit();
+
+    if (classes[i] == 0) {
+
+        memset(input_data + (size_t)i * c->chunk_size, 0x00, c->chunk_size);
+
+    } else {
+
+        // leave random
+
+    }
+
+    }
+
+}
+
 
 
 int main(){
