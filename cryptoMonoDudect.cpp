@@ -1,182 +1,104 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
-#include <sys/random.h>
-
 #include "monocypher.h"
+#include "monocypher_random.h"
 #define DUDECT_IMPLEMENTATION
 #include "dudect.h"
 
 #define SECRET_KEY_SIZE 32
-#define NONCE_SIZE      24
-#define TEXT_SIZE       12  
-#define MAC_SIZE        16
+#define NONCE_SIZE 24
+#define TEXT_SIZE 12
+#define MAC_SIZE 16
+#define SAMPLE_SIZE (SECRET_KEY_SIZE + NONCE_SIZE + TEXT_SIZE)
 
+// Added: retain every output byte so the measured work is observable even if
+// optimization/inlining changes. This common sink adds overhead to both classes.
+static volatile uint8_t output_sink;
 
-// dudect
-
-/*
-    functions to implement:
-    do_one_computation()
-    prepare_inputs()
-    call dudect_main() from main function
-*/
-
-/*(Example Below)*/
-
- 
-
-/* target function to check for constant time */
-
-int check_tag(uint8_t *x, uint8_t *y, size_t len) {
-//   return memcmp(x, y, len);
-}
-
- 
-#define SECRET_LEN_BYTES (512)
-uint8_t secret[SECRET_LEN_BYTES] = {0, 1, 2, 3, 4, 5, 6, 42};
-
- 
-
-/* this will be called over and over */
-
-uint8_t do_one_computation(uint8_t *data) {
-  /* simulate totally bogus MAC check in non-constant time */
-  return check_tag(data, secret, SECRET_LEN_BYTES);
-}
-
- 
-
-
-
- 
-
-/*(END Example ABOVE)*/
-
- 
-
-/*
-
-the function crypto_aead_lock accepts key, nonce, and msg
-therefore we need to unpack the data into their respective destination
-
-Example:
-key = 32 bytes
-key = chunck
-nonce = 24 bytes
-nonce = chunck + 32 bytes
-msg = 12 bytes
-msg = chunck + 32 bytes + 24 bytes
-
- 
-uint8_t key        [32];    // Random, secret session key  
-uint8_t nonce      [24];    // Use only once per key       
-uint8_t plain_text [12] = "Lorem ipsum"; // Secret message 
-uint8_t mac        [16];    // Message authentication code 
-uint8_t cipher_text[12];              // Encrypted message 
- 
-
-*/
-
-
-void encryption_monocypher(){
-  uint8_t key        [32];    /* Random, secret session key  */
-  uint8_t nonce      [24];    /* Use only once per key       */
-  uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
-  uint8_t mac        [16];    /* Message authentication code */
-  uint8_t cipher_text[12];              /* Encrypted message */
-  arc4random_buf(key,   32);
-  arc4random_buf(nonce, 24);
-  crypto_aead_lock(cipher_text, mac,
-                  key, nonce,
-                  NULL, 0,
-                  plain_text, sizeof(plain_text));
-  /* Wipe secrets if they are no longer needed */
-  crypto_wipe(plain_text, 12);
-  crypto_wipe(key, 32);
-  /* Transmit cipher_text, nonce, and mac over the network,
-  * store them in a file, etc.
-  */
-}
-
-// encryption and decryption will be separated into their own file
-void decryption_monocypher(){
-  uint8_t key        [32];    /* Random, secret session key  */
-  uint8_t nonce      [24];    /* Use only once per key       */
-  uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
-  uint8_t mac        [16];    /* Message authentication code */
-  uint8_t cipher_text[12];              /* Encrypted message */
-  arc4random_buf(key,   32);
-  arc4random_buf(nonce, 24);
-  crypto_aead_lock(cipher_text, mac,
-                  key, nonce,
-                  NULL, 0,
-                  plain_text, sizeof(plain_text));
-  /* Wipe secrets if they are no longer needed */
-  crypto_wipe(plain_text, 12);
-  crypto_wipe(key, 32);
-  /* Transmit cipher_text, nonce, and mac over the network,
-  * store them in a file, etc.
-  */
-}
-
-/* called once per number_measurements */
-
-void prepare_inputs(dudect_config_t *c, uint8_t *input_data, uint8_t *classes) {
-
-    // randombytes(input_data, c->number_measurements * c->chunk_size);
-
-    // monocypher RNG impl:
-    getrandom(input_data, c->number_measurements * c->chunk_size, 0);
-
-    for (size_t i = 0; i < c->number_measurements; i++) {
-      /* it is important to randomize the class sequence */
-      classes[i] = randombit();
-
-      if (classes[i] == 0) {
-          memset(input_data + (size_t)i * c->chunk_size, 0x00, c->chunk_size);
-      } else {
-          // leave random
-      }
-
+uint8_t do_one_computation(uint8_t *data)
+{
+    // Replaced the unfinished check_tag example with actual AEAD encryption.
+    // Sample layout: key[32], public nonce[24], public plaintext[12].
+    uint8_t cipher_text[TEXT_SIZE];
+    uint8_t mac[MAC_SIZE];
+    crypto_aead_lock(cipher_text, mac, data, data + SECRET_KEY_SIZE,
+                     NULL, 0, data + SECRET_KEY_SIZE + NONCE_SIZE, TEXT_SIZE);
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < sizeof(cipher_text); ++i) {
+        checksum ^= cipher_text[i];
     }
-
+    for (size_t i = 0; i < sizeof(mac); ++i) {
+        checksum ^= mac[i];
+    }
+    output_sink = checksum;
+    return checksum;
 }
 
-
-int run_test(void) {
-
-  dudect_config_t config = {
-      .chunk_size = SECRET_LEN_BYTES,
-      .number_measurements = 500,
-  };
-
-  dudect_ctx_t ctx;
-  dudect_init(&ctx, &config);
-
-  /*
-  Call dudect_main() until
-   - returns something different than DUDECT_NO_LEAKAGE_EVIDENCE_YET, or
-   - you spent too much time testing and give up
-  Recommended that you wrap this program with timeout(2) if you don't
-  have infinite time.
-  For example this will run for 20 mins:
-    $ timeout 1200 ./your-executable
-  */
-
-  dudect_state_t state = DUDECT_NO_LEAKAGE_EVIDENCE_YET;
-  
-  while (state == DUDECT_NO_LEAKAGE_EVIDENCE_YET) {
-    state = dudect_main(&ctx);
-  }
-
-  dudect_free(&ctx);
-  return (int)state;
+void prepare_inputs(dudect_config_t *config, uint8_t *input_data, uint8_t *classes)
+{
+    // Added: all randomness and class preparation happen outside measurement.
+    // Abort on RNG failure because dudect's preparation callback returns void.
+    if (monocypher_random(input_data,
+                          config->number_measurements * config->chunk_size) != 0 ||
+        monocypher_random(classes, config->number_measurements) != 0) {
+        perror("Monocypher timing-input randomness failed");
+        exit(EXIT_FAILURE);
+    }
+    for (size_t i = 0; i < config->number_measurements; ++i) {
+        uint8_t *sample = input_data + i * config->chunk_size;
+        classes[i] &= 1;
+        if (classes[i] == 0) {
+            memset(sample, 0, SECRET_KEY_SIZE); // fixed versus random key
+        }
+        // Match public inputs across classes. Repeated nonces are intentional
+        // laboratory inputs here, never a recipe for application encryption.
+        memset(sample + SECRET_KEY_SIZE, 0, NONCE_SIZE);
+        memcpy(sample + SECRET_KEY_SIZE + NONCE_SIZE, "Lorem ipsum", TEXT_SIZE);
+    }
 }
 
-
-int main(){
-  run_test();
-  return;
+int main(int argc, char **argv)
+{
+    // Added: bounded smoke mode prevents the previous unbounded loop. Controls,
+    // repeated trials, and experimental stopping criteria still need validation.
+    size_t batches = 1;
+    if (argc > 2) {
+        fprintf(stderr, "Usage: %s [batches: 1..100000]\n", argv[0]);
+        return 2;
+    }
+    if (argc == 2) {
+        char *end;
+        errno = 0;
+        unsigned long value = strtoul(argv[1], &end, 10);
+        if (errno != 0 || argv[1][0] < '0' || argv[1][0] > '9' ||
+            *end != '\0' || value == 0 || value > 100000) {
+            fprintf(stderr, "Batch count must be an integer from 1 to 100000.\n");
+            return 2;
+        }
+        batches = (size_t)value;
+    }
+    fprintf(stderr, "Monocypher encryption smoke run: %zu batch(es); "
+                    "timing controls are not yet validated.\n", batches);
+    dudect_config_t config = {};
+    config.chunk_size = SAMPLE_SIZE;
+    config.number_measurements = 500;
+    dudect_ctx_t ctx;
+    if (dudect_init(&ctx, &config) != 0) {
+        fprintf(stderr, "dudect initialization failed.\n");
+        return 1;
+    }
+    dudect_state_t state = DUDECT_NO_LEAKAGE_EVIDENCE_YET;
+    for (size_t i = 0; i < batches && state == DUDECT_NO_LEAKAGE_EVIDENCE_YET; ++i) {
+        state = dudect_main(&ctx);
+    }
+    dudect_free(&ctx);
+    if (state == DUDECT_LEAKAGE_FOUND) {
+        fprintf(stderr, "Timing distinguisher reported; controls and reproduction required.\n");
+        return 3;
+    }
+    puts("Smoke run finished without a dudect finding; this is not proof of constant time.");
+    return 0;
 }
