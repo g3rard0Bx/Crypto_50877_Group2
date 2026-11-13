@@ -1,3 +1,5 @@
+// LEGACY PROTOTYPE: incomplete and excluded from maintained test entry points.
+// See README.md for the current harnesses and build commands.
 #include <stdio.h>
 #include <valgrind/memcheck.h>
 #include "hydrogen.h"
@@ -71,8 +73,8 @@ void valgrind_phase (uint8_t secret_key[hydro_secretbox_KEYBYTES]){
 
     
     // decryption:
-    int res = hydro_secretbox_decrypt(decrypted, ciphertext, CIPHERTEXT_LEN, 0, CONTEXT, secret_key);
-    if (res != 0) {
+    int res2 = hydro_secretbox_decrypt(decrypted, ciphertext, CIPHERTEXT_LEN, 0, CONTEXT, secret_key);
+    if (res2 != 0) {
         fprintf(stderr, "Invalid... decryption failed");
     }
 
