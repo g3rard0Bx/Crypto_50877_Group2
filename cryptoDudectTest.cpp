@@ -1,5 +1,3 @@
-// LEGACY PROTOTYPE: incomplete and excluded from maintained test entry points.
-// See README.md for the current harnesses and build commands.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
