@@ -77,3 +77,19 @@ trials, and validate controls for each measurement configuration. Timing exit 3
 means dudect reported a finding; exit 0 means the budget ended without a finding,
 not proof of constant time. The current dudect timer is x86-specific; ARM64
 requires a timer implementation and validation.
+
+## Quick correctness and leaky checks
+
+From the repository root, with `CC`/`CXX` exported as above:
+
+```bash
+make test memcheck OPT=O2       # Correctness: all checks pass, zero Memcheck errors.
+make controls-memcheck OPT=O2  # Leaky controls report taint; fixed-work stays clean.
+BIN_DIR=$(make -s paths OPT=O2)
+"$BIN_DIR/controls-timing" leaky 2000
+"$BIN_DIR/controls-timing" fixed-work 2000
+```
+
+For timing validation, repeat each mode five times and save every output.
+Expect leaky findings (exit 3) and fixed-work budget completion (exit 0);
+investigate unexpected results. No finding does not prove constant time.
