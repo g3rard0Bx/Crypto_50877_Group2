@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "monocypher.h"
-#include "monocypher_random.h"
+#include "random.h"
 
 // Added: ordinary correctness checks, deliberately without secret annotations.
 // Each negative case changes exactly one input and keeps the others valid.

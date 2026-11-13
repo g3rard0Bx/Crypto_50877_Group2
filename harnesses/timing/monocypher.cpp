@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "monocypher.h"
-#include "monocypher_random.h"
+#include "random.h"
 #define DUDECT_IMPLEMENTATION
 #include "dudect.h"
 
@@ -17,6 +17,7 @@
 // Added: retain every output byte so the measured work is observable even if
 // optimization/inlining changes. This common sink adds overhead to both classes.
 static volatile uint8_t output_sink;
+static size_t generated_classes[2];
 
 uint8_t do_one_computation(uint8_t *data)
 {
@@ -57,13 +58,14 @@ void prepare_inputs(dudect_config_t *config, uint8_t *input_data, uint8_t *class
         // laboratory inputs here, never a recipe for application encryption.
         memset(sample + SECRET_KEY_SIZE, 0, NONCE_SIZE);
         memcpy(sample + SECRET_KEY_SIZE + NONCE_SIZE, "Lorem ipsum", TEXT_SIZE);
+        ++generated_classes[classes[i]];
     }
 }
 
 int main(int argc, char **argv)
 {
-    // Added: bounded smoke mode prevents the previous unbounded loop. Controls,
-    // repeated trials, and experimental stopping criteria still need validation.
+    // Bounded runs support smoke checks and predeclared pilot budgets. Controls
+    // must be validated separately for the selected compiler/environment.
     size_t batches = 1;
     if (argc > 2) {
         fprintf(stderr, "Usage: %s [batches: 1..100000]\n", argv[0]);
@@ -80,8 +82,8 @@ int main(int argc, char **argv)
         }
         batches = (size_t)value;
     }
-    fprintf(stderr, "Monocypher encryption smoke run: %zu batch(es); "
-                    "timing controls are not yet validated.\n", batches);
+    fprintf(stderr, "Monocypher encryption: max_batches=%zu; samples_per_batch=500; "
+                    "fixed/random keys; plaintext_bytes=%d.\n", batches, TEXT_SIZE);
     dudect_config_t config = {};
     config.chunk_size = SAMPLE_SIZE;
     config.number_measurements = 500;
@@ -91,14 +93,22 @@ int main(int argc, char **argv)
         return 1;
     }
     dudect_state_t state = DUDECT_NO_LEAKAGE_EVIDENCE_YET;
-    for (size_t i = 0; i < batches && state == DUDECT_NO_LEAKAGE_EVIDENCE_YET; ++i) {
+    size_t completed = 0;
+    while (completed < batches && state == DUDECT_NO_LEAKAGE_EVIDENCE_YET) {
         state = dudect_main(&ctx);
+        ++completed;
     }
+    // Generated counts include warm-up; uncropped counts reflect dudect discards.
+    printf("Completed batches=%zu; generated classes=%zu/%zu; "
+           "uncropped analyzed classes=%.0f/%.0f.\n",
+           completed, generated_classes[0], generated_classes[1],
+           ctx.ttest_ctxs[0]->n[0], ctx.ttest_ctxs[0]->n[1]);
     dudect_free(&ctx);
     if (state == DUDECT_LEAKAGE_FOUND) {
         fprintf(stderr, "Timing distinguisher reported; controls and reproduction required.\n");
         return 3;
     }
-    puts("Smoke run finished without a dudect finding; this is not proof of constant time.");
+    puts("Budget exhausted without a dudect finding; inspect analyzed counts. "
+         "This is not proof of constant time.");
     return 0;
 }

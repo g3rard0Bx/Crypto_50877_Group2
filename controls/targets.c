@@ -1,4 +1,4 @@
-#include "control_targets.h"
+#include "targets.h"
 
 // Compile this translation unit as C, separately from the harness, without LTO.
 // Volatile accesses retain a fixed-address workload instead of a removable delay.

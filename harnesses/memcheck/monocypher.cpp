@@ -4,7 +4,7 @@
 #include <valgrind/memcheck.h>
 
 #include "monocypher.h"
-#include "monocypher_random.h"
+#include "random.h"
 
 // Maintained Monocypher Memcheck starting point. Correctness and timing
 // experiments will be maintained separately as the harnesses are expanded.

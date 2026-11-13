@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "control_targets.h"
-#include "monocypher_random.h"
+#include "targets.h"
+#include "random.h"
 #define DUDECT_IMPLEMENTATION
 #include "dudect.h"
 

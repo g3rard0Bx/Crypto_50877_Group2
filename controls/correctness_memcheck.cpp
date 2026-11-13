@@ -2,7 +2,7 @@
 #include <string.h>
 #include <valgrind/memcheck.h>
 
-#include "control_targets.h"
+#include "targets.h"
 
 // Separate correctness/annotation driver: never use this program for timing.
 static int correctness(void)
