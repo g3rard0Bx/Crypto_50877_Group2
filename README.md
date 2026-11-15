@@ -12,6 +12,7 @@ Run commands from the repository root on Linux or WSL.
 - `controls/`: synthetic leaky/fixed-work targets and their verification drivers.
 - `support/`: shared checked randomness helper.
 - `legacy/`: incomplete original prototypes, excluded from builds.
+- `scripts/`: repeatable verification commands for both research compilers.
 - `build/`: ignored binaries/objects, isolated by compiler version, target, and optimization.
 
 Library sources are already vendored. Libhydrogen's `impl/` tree must stay beside
@@ -93,3 +94,39 @@ BIN_DIR=$(make -s paths OPT=O2)
 For timing validation, repeat each mode five times and save every output.
 Expect leaky findings (exit 3) and fixed-work budget completion (exit 0);
 investigate unexpected results. No finding does not prove constant time.
+
+## Verification scripts
+
+Run these from the repository root. They require Bash, Make, Valgrind,and
+both research compiler installations. Both rebuild their selected targets
+and return nonzero on a failed check.
+
+```bash
+./scripts/verify.sh
+./scripts/verify-controls.sh
+```
+
+- **`verify.sh`**: run after harness/build changes for the established `-O2`
+  baseline. Rebuilds all eight programs with GCC and Clang, runs correctness,
+  ordinary and annotated Memcheck checks, and timing smoke checks. Then runs five
+  timing repetitions per compiler for leaky, fixed-work, and Monocypher
+  encryption (30 trials total).
+- **`verify-controls.sh`**: run before interpreting library timing at `-O0`,
+  `-O1`, or `-O3`, and after changes to controls, the timing harness, compiler, or
+  measurement environment. Checks control correctness and annotated Memcheck,
+  then runs five trials per compiler/optimization/control mode (60 trials total)
+  in randomized order. Checks fixed-work sample-budget completion and prints a
+  summary. It does not run library pilots; inspect linked assembly separately.
+
+Both use up to 2,000 batches per timing trial, five repetitions, and
+180-second timeout per trial.Override compiler locations or CPU as needed:
+
+```bash
+GCC_ROOT="$HOME/opt/gcc-16.2.0" \
+CLANG_ROOT="$HOME/opt/llvm-23.1.0" \
+CPU=0 ./scripts/verify-controls.sh
+```
+
+The scripts select their own compiler paths rather than exported `CC`/`CXX`.
+Inspect unexpected findings before drawing research conclusions.
+Passing checks does not prove constant-time behavior.
