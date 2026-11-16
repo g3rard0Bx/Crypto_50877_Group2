@@ -14,6 +14,10 @@
 #define MAC_SIZE        16
 
 
+
+
+static const uint8_t plain_text [TEXT_SIZE] = "Lorem ipsum";
+
 // dudect
 
 /*
@@ -23,38 +27,8 @@
     call dudect_main() from main function
 */
 
-/*(Example Below)*/
-
- 
-
-/* target function to check for constant time */
-
-int check_tag(uint8_t *x, uint8_t *y, size_t len) {
-//   return memcmp(x, y, len);
-}
-
- 
-#define SECRET_LEN_BYTES (512)
-uint8_t secret[SECRET_LEN_BYTES] = {0, 1, 2, 3, 4, 5, 6, 42};
-
- 
-
-/* this will be called over and over */
-
-uint8_t do_one_computation(uint8_t *data) {
-  /* simulate totally bogus MAC check in non-constant time */
-  return check_tag(data, secret, SECRET_LEN_BYTES);
-}
-
- 
 
 
-
- 
-
-/*(END Example ABOVE)*/
-
- 
 
 /*
 
@@ -80,62 +54,101 @@ uint8_t cipher_text[12];              // Encrypted message
 */
 
 
-void encryption_monocypher(){
-  uint8_t key        [32];    /* Random, secret session key  */
-  uint8_t nonce      [24];    /* Use only once per key       */
-  uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
-  uint8_t mac        [16];    /* Message authentication code */
-  uint8_t cipher_text[12];              /* Encrypted message */
-  arc4random_buf(key,   32);
-  arc4random_buf(nonce, 24);
+// void encryption_monocypher(){
+//   uint8_t key        [32];    /* Random, secret session key  */
+//   uint8_t nonce      [24];    /* Use only once per key       */
+//   uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
+//   uint8_t mac        [16];    /* Message authentication code */
+//   uint8_t cipher_text[12];              /* Encrypted message */
+//   arc4random_buf(key,   32);
+//   arc4random_buf(nonce, 24);
+//   crypto_aead_lock(cipher_text, mac,
+//                   key, nonce,
+//                   NULL, 0,
+//                   plain_text, sizeof(plain_text));
+//   /* Wipe secrets if they are no longer needed */
+//   crypto_wipe(plain_text, 12);
+//   crypto_wipe(key, 32);
+//   /* Transmit cipher_text, nonce, and mac over the network,
+//   * store them in a file, etc.
+//   */
+// }
+
+// // encryption and decryption will be separated into their own file
+// void decryption_monocypher(){
+//   uint8_t key        [32];    /* Random, secret session key  */
+//   uint8_t nonce      [24];    /* Use only once per key       */
+//   uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
+//   uint8_t mac        [16];    /* Message authentication code */
+//   uint8_t cipher_text[12];              /* Encrypted message */
+//   arc4random_buf(key,   32);
+//   arc4random_buf(nonce, 24);
+//   crypto_aead_lock(cipher_text, mac,
+//                   key, nonce,
+//                   NULL, 0,
+//                   plain_text, sizeof(plain_text));
+//   /* Wipe secrets if they are no longer needed */
+//   crypto_wipe(plain_text, 12);
+//   crypto_wipe(key, 32);
+//   /* Transmit cipher_text, nonce, and mac over the network,
+//   * store them in a file, etc.
+//   */
+// }
+
+
+/* this will be called over and over */
+// we want encryption or decryption
+uint8_t do_one_computation(uint8_t *data) {
+  /* simulate totally bogus MAC check in non-constant time */
+  // return check_tag(data, secret, SECRET_LEN_BYTES);
+
+  uint8_t *key = data;    /* Random, secret session key  */
+  uint8_t *nonce = data + SECRET_KEY_SIZE;    
+
+  uint8_t mac [MAC_SIZE];   
+  uint8_t cipher_text[TEXT_SIZE];
+
+  // arc4random on windows
+  // arc4random_buf(key,   32);
+  // arc4random_buf(nonce, 24);
+
+  // using randombytes function to work across different systems 
+  randombytes(key, 32);
+  randombytes(nonce, 24);
+  
+  // encryption:
   crypto_aead_lock(cipher_text, mac,
                   key, nonce,
                   NULL, 0,
                   plain_text, sizeof(plain_text));
-  /* Wipe secrets if they are no longer needed */
-  crypto_wipe(plain_text, 12);
-  crypto_wipe(key, 32);
-  /* Transmit cipher_text, nonce, and mac over the network,
-  * store them in a file, etc.
-  */
+  
+  
+  
+  return memcmp(plain_text, cipher_text, TEXT_SIZE);
 }
 
-// encryption and decryption will be separated into their own file
-void decryption_monocypher(){
-  uint8_t key        [32];    /* Random, secret session key  */
-  uint8_t nonce      [24];    /* Use only once per key       */
-  uint8_t plain_text [12] = "Lorem ipsum"; /* Secret message */
-  uint8_t mac        [16];    /* Message authentication code */
-  uint8_t cipher_text[12];              /* Encrypted message */
-  arc4random_buf(key,   32);
-  arc4random_buf(nonce, 24);
-  crypto_aead_lock(cipher_text, mac,
-                  key, nonce,
-                  NULL, 0,
-                  plain_text, sizeof(plain_text));
-  /* Wipe secrets if they are no longer needed */
-  crypto_wipe(plain_text, 12);
-  crypto_wipe(key, 32);
-  /* Transmit cipher_text, nonce, and mac over the network,
-  * store them in a file, etc.
-  */
-}
 
 /* called once per number_measurements */
 
 void prepare_inputs(dudect_config_t *c, uint8_t *input_data, uint8_t *classes) {
+    // c->chunk_size = TEXT_SIZE;
 
-    // randombytes(input_data, c->number_measurements * c->chunk_size);
+    randombytes(input_data, c->number_measurements * c->chunk_size);
 
-    // monocypher RNG impl:
-    getrandom(input_data, c->number_measurements * c->chunk_size, 0);
+    // // monocypher RNG impl:
+    // getrandom(input_data, c->number_measurements * c->chunk_size, 0);
 
     for (size_t i = 0; i < c->number_measurements; i++) {
       /* it is important to randomize the class sequence */
       classes[i] = randombit();
 
       if (classes[i] == 0) {
-          memset(input_data + (size_t)i * c->chunk_size, 0x00, c->chunk_size);
+        // do not alter nonce (gets generated randomly)
+        //c->chunk_size ==> SECRET_KEY_LENGTH
+        // isolates secret key while testing for leakage
+        // class 0 = random, class 1 = random which isn't what we want
+        //instead class 0 = fixed, class 1 = random based on secret key  
+          memset(input_data + (size_t)i * c->chunk_size, 0x00, SECRET_KEY_SIZE);
       } else {
           // leave random
       }
@@ -148,7 +161,7 @@ void prepare_inputs(dudect_config_t *c, uint8_t *input_data, uint8_t *classes) {
 int run_test(void) {
 
   dudect_config_t config = {
-      .chunk_size = SECRET_LEN_BYTES,
+      // .chunk_size = SECRET_LEN_BYTES,
       .number_measurements = 500,
   };
 
@@ -156,6 +169,7 @@ int run_test(void) {
   dudect_init(&ctx, &config);
 
   /*
+  From dudect repo:
   Call dudect_main() until
    - returns something different than DUDECT_NO_LEAKAGE_EVIDENCE_YET, or
    - you spent too much time testing and give up
@@ -172,6 +186,13 @@ int run_test(void) {
   }
 
   dudect_free(&ctx);
+
+  if(state == DUDECT_LEAKAGE_FOUND){
+    printf("--------------------------------");
+    printf("\n[!] Timing Leakage Detected!\n");
+    printf("--------------------------------");
+  }
+
   return (int)state;
 }
 
