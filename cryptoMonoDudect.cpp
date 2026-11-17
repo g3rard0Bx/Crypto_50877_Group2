@@ -118,13 +118,15 @@ uint8_t do_one_computation(uint8_t *data) {
   
   // encryption:
   crypto_aead_lock(cipher_text, mac,
-                  key, nonce,
-                  NULL, 0,
-                  plain_text, sizeof(plain_text));
+    key, nonce,
+    NULL, 0,
+    plain_text, sizeof(plain_text)
+  );
   
   
+  //compare
   
-  return memcmp(plain_text, cipher_text, TEXT_SIZE);
+  return memcmp(data, key, SECRET_KEY_SIZE);
 }
 
 
