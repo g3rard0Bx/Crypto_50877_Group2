@@ -14,8 +14,17 @@
 #define MAC_SIZE        16
 
 
-
-
+/**
+ * Bash terminal:
+ * gcc-16 -O2 -c monocypher.c -o monocypher.o
+ * g++-16 -std=c++17 -O2 -I . cryptoMonoDudect.cpp monocypher.o -lm -o dudect_encrypt_gcc
+ * timeout 300s ./dudect_encrypt_gcc 2>&1 | tee results_gcc_O2.txt
+ * 
+ * clang-23 -O2 -c monocypher.c -o monocypher.o
+ * clang++-23 -std=c++17 -O2 -I . dudect_monocypher.cpp monocypher.o -lm -o dudect_encrypt_clang
+ * timeout 300s ./dudect_encrypt_clang 2>&1 | tee results_clang_O2.txt
+ * 
+ */
 static const uint8_t plain_text [TEXT_SIZE] = "Lorem ipsum";
 
 // dudect
@@ -124,8 +133,7 @@ uint8_t do_one_computation(uint8_t *data) {
   );
   
   
-  //compare
-  
+  //not necessary but can also set to return value to 0
   return memcmp(data, key, SECRET_KEY_SIZE);
 }
 
@@ -201,5 +209,5 @@ int run_test(void) {
 
 int main(){
   run_test();
-  return;
+  return 0;
 }
