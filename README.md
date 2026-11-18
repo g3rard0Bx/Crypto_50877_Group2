@@ -15,8 +15,7 @@ Run commands from the repository root on Linux or WSL.
 - `scripts/`: repeatable verification commands for both research compilers.
 - `build/`: ignored binaries/objects, isolated by compiler version, target, and optimization.
 
-Library sources are already vendored. Libhydrogen's `impl/` tree must stay beside
-its `hydrogen.c`. Original upstream references:
+Library sources are already vendored.
 [Libhydrogen](https://github.com/jedisct1/libhydrogen) and
 [Monocypher source reference](https://github.com/snej/monocypher-cpp.git).
 
