@@ -1,0 +1,29 @@
+# Findings to discuss in the report
+
+## Method validation
+
+Synthetic leaky controls produced findings in every completed pilot trial; fixed-work controls completed their budgets without findings. GCC 16.2.0 and Clang 23.1.0 controls have been checked at O0/O1/O2/O3 on the tested x86-64 WSL system. Correctness checks cover all 256 selector values for both targets; separate Memcheck and assembly checks confirm intended dependencies and retained work. See timing-summary.csv for each distinct pilot and its evidence level.
+
+The positive control intentionally amplifies a secret-selected 64/4096-iteration workload. Its fixed-zero/forced-odd-secret classes differ from the library's natural fixed/random keys. This validates detection of that large synthetic difference, not universal sensitivity to small library effects.
+
+## Monocypher encryption
+
+The 2026-11-17 O0/O1/O3 pilot used five independent processes per compiler/optimization: 30 trials, no findings, all reaching one million generated and 977,511 uncropped analyzed samples. Largest printed absolute t: GCC O0/O1/O3 3.76/2.62/4.37; Clang 3.14/2.91/3.66. The threshold remained 10. Evidence is session-output transcription; no raw logs exist for these trials.
+
+Saved O2 pilots likewise had no findings: initial pilot maxima GCC 2.61/Clang 3.00; rebuilt pilot 3.32/3.30; later reverification 3.19/3.05. These are separate experiments with their own source/binary provenance. Differences in maxima alone do not rank compiler security or establish an optimization trend.
+
+Operation is crypto_aead_lock with 32-byte fixed-zero versus natural-random keys, matched 24-byte zero nonce, 12-byte plaintext (Lorem ipsum plus NUL), empty associated data, random class order, checked randomness outside measurement, retained checksum/output sink. Compilers apply the selected optimization to both library C and harness C++, no LTO. Trials are CPU-pinned, bounded, and stop early on findings. Generated counts include discarded samples and must not be reported as analyzed counts.
+
+Correctness covers round-trip/plaintext equality and rejection of modified ciphertext, modified tag and wrong key. The latest six configurations also passed 10,000 prepared-sample/callback checks each, and linked assembly retains encryption and output stores.
+
+## Memcheck interpretation
+
+Annotated library runs report existing source-level authentication-result decisions (Libhydrogen secretbox.h:231; Monocypher monocypher.c:2953). Authentication success/failure is observable; those reports alone do not show compiler-induced leakage. Ordinary correctness Memcheck checks are separate from intentionally annotated runs and expected positive controls.
+
+## Reporting limits and gaps
+
+No detected difference within these budgets is not proof of constant time. Coverage is short-message Monocypher encryption, fixed/random keys, x86-64 WSL; broader message sizes, decryption, other secret classes, Libhydrogen timing, ARM64 and native-environment comparisons remain open. WSL scheduling/frequency noise is possible. The callback includes checksum overhead. Raw cycle traces and exact selected cropped bucket IDs/counts are unavailable. Saved process logs provide stronger auditability than later summary-only runs; do not imply equivalent raw evidence or pool the experiments without explaining their provenance. No key-recovery or confirmed compiler-induced library leak is demonstrated.
+
+## Higher-sample O2 follow-up — 2026-11-17
+
+One 10-million-generated-sample trial per compiler completed with no findings; 9,779,511 uncropped analyzed samples each. Maximum printed |t| GCC 2.48 and Clang 2.18, final 2.00/2.09. The prior five-trial O2 baseline maxima were 3.19/3.05 at 1M generated per trial. Unequal repetitions and random sampling prevent interpreting lower maxima as improved security. Exact O2 binary hashes match the earlier validated baseline. Full process logs and provenance are saved in 2026-11-17/monocypher-O2-high-sample. No constant-time proof inferred.
