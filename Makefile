@@ -13,7 +13,7 @@ COMPILER := $(notdir $(CC))-$(shell $(CC) -dumpfullversion -dumpversion)
 TARGET := $(shell $(CC) -dumpmachine)
 BUILD_DIR := build/$(COMPILER)/$(TARGET)/$(OPT)
 
-NAMES := correctness-hydrogen correctness-hydrogen-iv correctness-monocypher memcheck-hydrogen memcheck-monocypher timing-hydrogen timing-monocypher controls-test controls-timing controls-branch
+NAMES := correctness-hydrogen correctness-hydrogen-iv correctness-monocypher memcheck-hydrogen memcheck-monocypher timing-hydrogen timing-hydrogen-iv timing-monocypher controls-test controls-timing controls-branch
 PROGRAMS := $(addprefix $(BUILD_DIR)/,$(NAMES))
 .DEFAULT_GOAL := all
 .PHONY: all test memcheck controls-memcheck smoke paths clean FORCE
@@ -47,7 +47,8 @@ $(eval $(call program,memcheck-monocypher,harnesses/memcheck/monocypher.o $(MONO
 $(eval $(call program,timing-monocypher,harnesses/timing/monocypher.o $(MONOCYPHER)))
 # The experimental adapter includes the vendor implementation unchanged and
 # exposes its static explicit-IV helper; never also link hydrogen.o here.
-$(eval $(call program,timing-hydrogen,harnesses/timing/libhydrogen.o support/hydrogen_experiment.o))
+$(eval $(call program,timing-hydrogen-iv,harnesses/timing/libhydrogen_explicit_iv.o support/hydrogen_experiment.o))
+$(eval $(call program,timing-hydrogen,harnesses/timing/libhydrogen.o $(HYDROGEN)))
 $(eval $(call program,controls-test,controls/correctness_memcheck.o controls/targets.o))
 $(eval $(call program,controls-timing,controls/timing.o controls/targets.o))
 $(eval $(call program,controls-branch,controls/memcheck_branch.o))
@@ -76,7 +77,7 @@ controls-memcheck: all
 
 smoke: all
 	$(BUILD_DIR)/timing-hydrogen 1
-	$(BUILD_DIR)/timing-hydrogen explicit-iv 1
+	$(BUILD_DIR)/timing-hydrogen-iv 1
 	$(BUILD_DIR)/timing-monocypher 1
 	$(BUILD_DIR)/controls-timing leaky 1
 	$(BUILD_DIR)/controls-timing fixed-work 1
@@ -85,7 +86,7 @@ paths:
 	@printf '%s\n' '$(BUILD_DIR)'
 
 # Only this configuration's known outputs; retain prior experiment binaries.
-OBJECTS := $(addprefix $(BUILD_DIR)/,harnesses/correctness/libhydrogen.o harnesses/correctness/libhydrogen_explicit_iv.o harnesses/correctness/monocypher.o harnesses/memcheck/libhydrogen.o harnesses/memcheck/monocypher.o harnesses/timing/libhydrogen.o harnesses/timing/monocypher.o support/hydrogen_experiment.o controls/correctness_memcheck.o controls/timing.o controls/targets.o controls/memcheck_branch.o $(HYDROGEN) $(MONOCYPHER))
+OBJECTS := $(addprefix $(BUILD_DIR)/,harnesses/correctness/libhydrogen.o harnesses/correctness/libhydrogen_explicit_iv.o harnesses/correctness/monocypher.o harnesses/memcheck/libhydrogen.o harnesses/memcheck/monocypher.o harnesses/timing/libhydrogen.o harnesses/timing/libhydrogen_explicit_iv.o harnesses/timing/monocypher.o support/hydrogen_experiment.o controls/correctness_memcheck.o controls/timing.o controls/targets.o controls/memcheck_branch.o $(HYDROGEN) $(MONOCYPHER))
 clean:
 	rm -f $(PROGRAMS) $(OBJECTS) $(OBJECTS:.o=.d) $(BUILD_DIR)/.flags $(BUILD_DIR)/.flags.tmp
 

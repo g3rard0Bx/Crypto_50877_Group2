@@ -6,7 +6,6 @@
 #include <errno.h>
 
 #include "hydrogen.h"
-#include "hydrogen_experiment.h"
 
 #define DUDECT_IMPLEMENTATION
 #include "dudect.h"
@@ -22,11 +21,6 @@
 static volatile uint8_t output_sink;
 // Sticky across every measured call: a later success must not hide a failure.
 static volatile unsigned encryption_failed;
-static bool explicit_iv_mode;
-
-// Public laboratory input prepared outside measurement. Reusing a fixed IV is
-// for this experiment only, not application encryption guidance.
-static const uint8_t experimental_iv[HYDRO_EXPERIMENT_IVBYTES] = {};
 
 static size_t generated_classes[2];
 
@@ -39,20 +33,11 @@ uint8_t do_one_computation(uint8_t *data)
 
     uint8_t ciphertext[hydro_secretbox_HEADERBYTES + TEXT_SIZE];
 
-    // Keep these experiments separate: the public API generates its IV with
-    // RNG inside encryption. The internal explicit-IV helper excludes that RNG
-    // and matches Monocypher's fixed public nonce setup more closely. It is not
-    // a public Libhydrogen API, and results must identify which path was timed.
-    // Mode selection is public and constant throughout a process.
-    int enc_result = explicit_iv_mode ? hydro_experiment_encrypt_iv(
-        ciphertext, msg, TEXT_SIZE, 0, CONTEXT, secret_key, experimental_iv
-    ) : hydro_secretbox_encrypt(
-        ciphertext,
-        msg,
-        TEXT_SIZE,
-        0,
-        CONTEXT,
-        secret_key
+    // Measure the supported public API, including its internal random IV
+    // generation. The separate libhydrogen_explicit_iv.cpp experiment excludes
+    // IV RNG, so its results must be identified and interpreted separately.
+    int enc_result = hydro_secretbox_encrypt(
+        ciphertext, msg, TEXT_SIZE, 0, CONTEXT, secret_key
     );
 
     encryption_failed = encryption_failed | (unsigned)(enc_result != 0);
@@ -111,25 +96,19 @@ int main(int argc, char **argv)
     // Bounded runs support smoke tests and controlled experiments.
     size_t batches = 1;
 
-    int batch_arg = 1;
-    if (argc > 1 && (strcmp(argv[1], "explicit-iv") == 0 ||
-                     strcmp(argv[1], "public-api") == 0)) {
-        explicit_iv_mode = strcmp(argv[1], "explicit-iv") == 0;
-        batch_arg = 2;
-    }
-    if (argc > batch_arg + 1) {
-        fprintf(stderr, "Usage: %s [public-api|explicit-iv] [batches: 1..100000]\n", argv[0]);
+    if (argc > 2) {
+        fprintf(stderr, "Usage: %s [batches: 1..100000]\n", argv[0]);
         return 2;
     }
 
-    if (argc > batch_arg) {
+    if (argc == 2) {
         char *end;
         errno = 0;
 
-        unsigned long value = strtoul(argv[batch_arg], &end, 10);
+        unsigned long value = strtoul(argv[1], &end, 10);
 
         if (errno != 0 ||
-            argv[batch_arg][0] < '0' || argv[batch_arg][0] > '9' ||
+            argv[1][0] < '0' || argv[1][0] > '9' ||
             *end != '\0' ||
             value == 0 || value > 100000) {
 
@@ -151,8 +130,7 @@ int main(int argc, char **argv)
             "Libhydrogen encryption: mode=%s; max_batches=%zu; "
             "samples_per_batch=500; fixed/random keys; "
             "plaintext_bytes=%d.\n",
-            explicit_iv_mode ? "explicit-iv (internal API; fixed zero IV; no IV RNG)"
-                             : "public-api (includes IV RNG)", batches, TEXT_SIZE);
+            "public-api (includes IV RNG)", batches, TEXT_SIZE);
 
     dudect_config_t config = {};
     config.chunk_size = SAMPLE_SIZE;
