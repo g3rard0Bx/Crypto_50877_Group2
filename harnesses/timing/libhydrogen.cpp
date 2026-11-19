@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #include "hydrogen.h"
+#include "hydrogen_experiment.h"
 
 #define DUDECT_IMPLEMENTATION
 #include "dudect.h"
@@ -19,7 +20,13 @@
 
 // Retain output so measured encryption work remains observable.
 static volatile uint8_t output_sink;
-static volatile int encryption_status;
+// Sticky across every measured call: a later success must not hide a failure.
+static volatile unsigned encryption_failed;
+static bool explicit_iv_mode;
+
+// Public laboratory input prepared outside measurement. Reusing a fixed IV is
+// for this experiment only, not application encryption guidance.
+static const uint8_t experimental_iv[HYDRO_EXPERIMENT_IVBYTES] = {};
 
 static size_t generated_classes[2];
 
@@ -32,7 +39,14 @@ uint8_t do_one_computation(uint8_t *data)
 
     uint8_t ciphertext[hydro_secretbox_HEADERBYTES + TEXT_SIZE];
 
-    int enc_result = hydro_secretbox_encrypt(
+    // Keep these experiments separate: the public API generates its IV with
+    // RNG inside encryption. The internal explicit-IV helper excludes that RNG
+    // and matches Monocypher's fixed public nonce setup more closely. It is not
+    // a public Libhydrogen API, and results must identify which path was timed.
+    // Mode selection is public and constant throughout a process.
+    int enc_result = explicit_iv_mode ? hydro_experiment_encrypt_iv(
+        ciphertext, msg, TEXT_SIZE, 0, CONTEXT, secret_key, experimental_iv
+    ) : hydro_secretbox_encrypt(
         ciphertext,
         msg,
         TEXT_SIZE,
@@ -41,7 +55,12 @@ uint8_t do_one_computation(uint8_t *data)
         secret_key
     );
 
-    encryption_status = enc_result;
+    encryption_failed = encryption_failed | (unsigned)(enc_result != 0);
+    if (enc_result != 0) {
+        // A failing API need not initialize ciphertext. Do not consume it;
+        // main rejects the whole run after this batch, even if later calls pass.
+        return 0;
+    }
 
     // Consume every ciphertext byte.
     uint8_t checksum = 0;
@@ -92,19 +111,25 @@ int main(int argc, char **argv)
     // Bounded runs support smoke tests and controlled experiments.
     size_t batches = 1;
 
-    if (argc > 2) {
-        fprintf(stderr, "Usage: %s [batches: 1..100000]\n", argv[0]);
+    int batch_arg = 1;
+    if (argc > 1 && (strcmp(argv[1], "explicit-iv") == 0 ||
+                     strcmp(argv[1], "public-api") == 0)) {
+        explicit_iv_mode = strcmp(argv[1], "explicit-iv") == 0;
+        batch_arg = 2;
+    }
+    if (argc > batch_arg + 1) {
+        fprintf(stderr, "Usage: %s [public-api|explicit-iv] [batches: 1..100000]\n", argv[0]);
         return 2;
     }
 
-    if (argc == 2) {
+    if (argc > batch_arg) {
         char *end;
         errno = 0;
 
-        unsigned long value = strtoul(argv[1], &end, 10);
+        unsigned long value = strtoul(argv[batch_arg], &end, 10);
 
         if (errno != 0 ||
-            argv[1][0] < '0' || argv[1][0] > '9' ||
+            argv[batch_arg][0] < '0' || argv[batch_arg][0] > '9' ||
             *end != '\0' ||
             value == 0 || value > 100000) {
 
@@ -123,10 +148,11 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr,
-            "Libhydrogen encryption: max_batches=%zu; "
+            "Libhydrogen encryption: mode=%s; max_batches=%zu; "
             "samples_per_batch=500; fixed/random keys; "
             "plaintext_bytes=%d.\n",
-            batches, TEXT_SIZE);
+            explicit_iv_mode ? "explicit-iv (internal API; fixed zero IV; no IV RNG)"
+                             : "public-api (includes IV RNG)", batches, TEXT_SIZE);
 
     dudect_config_t config = {};
     config.chunk_size = SAMPLE_SIZE;
@@ -142,7 +168,7 @@ int main(int argc, char **argv)
     dudect_state_t state = DUDECT_NO_LEAKAGE_EVIDENCE_YET;
     size_t completed = 0;
 
-    while (completed < batches &&
+    while (completed < batches && !encryption_failed &&
            state == DUDECT_NO_LEAKAGE_EVIDENCE_YET) {
 
         state = dudect_main(&ctx);
@@ -159,12 +185,12 @@ int main(int argc, char **argv)
         ctx.ttest_ctxs[0]->n[1]
     );
 
-    int final_encryption_status = encryption_status;
+    unsigned any_encryption_failed = encryption_failed;
 
     dudect_free(&ctx);
 
-    if (final_encryption_status != 0) {
-        fprintf(stderr, "Libhydrogen encryption failed.\n");
+    if (any_encryption_failed) {
+        fprintf(stderr, "Libhydrogen encryption failed; discard this timing run.\n");
         return 1;
     }
 
